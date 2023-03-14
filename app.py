@@ -41,7 +41,7 @@ connection = psycopg2.connect(url)
 def ADD_INCOME():
     data = request.get_json()
     amount = data["amount"]
-    source = data["category"]
+    source = data["source"]
     date = data["date"]
     with connection:
         with connection.cursor() as cursor:
@@ -54,3 +54,21 @@ def ADD_INCOME():
             cursor.execute("SELECT lastval()")
             income_id = cursor.fetchone()[0]
     return {"id": income_id, "message": f"Income of {amount} from {source}, on {date} created."}, 201
+
+@app.post("/api/expenses")
+def ADD_INCOME():
+    data = request.get_json()
+    amount = data["amount"]
+    category = data["category"]
+    date = data["date"]
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(CREATE_EXPENSES_TABLE)
+            cursor.execute(INSERT_EXPENSES, (amount, category, date))
+            # Check if any rows were inserted
+            if cursor.rowcount == 0:
+                return {"message": "No rows were inserted."}, 400
+            # Fetch the last inserted row's ID
+            cursor.execute("SELECT lastval()")
+            income_id = cursor.fetchone()[0]
+    return {"id": income_id, "message": f"Expense of {amount} from {category}, on {date} created."}, 201
