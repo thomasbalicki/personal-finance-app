@@ -7,7 +7,7 @@ CREATE_INCOME_TABLE = """
 CREATE TABLE IF NOT EXISTS income (
 id SERIAL PRIMARY KEY,
 amount FLOAT NOT NULL,
-source TEXT NOT NULL,
+category TEXT NOT NULL,
 date DATE NOT NULL
 );
 """
@@ -37,11 +37,12 @@ app = Flask(__name__)
 url = os.getenv("DATABASE_URL")
 connection = psycopg2.connect(url)
 
+# -------------------------- Add Income -----------------------------
 @app.post("/api/income")
 def ADD_INCOME():
     data = request.get_json()
     amount = data["amount"]
-    source = data["source"]
+    source = data["category"]
     date = data["date"]
     with connection:
         with connection.cursor() as cursor:
@@ -55,20 +56,32 @@ def ADD_INCOME():
             income_id = cursor.fetchone()[0]
     return {"id": income_id, "message": f"Income of {amount} from {source}, on {date} created."}, 201
 
+
+# -------------------------- Add Expenes -----------------------------
 @app.post("/api/expenses")
-def ADD_INCOME():
-    data = request.get_json()
-    amount = data["amount"]
-    category = data["category"]
-    date = data["date"]
+def ADD_EXPENSES():
+   data = request.get_json()
+   amount = data["amount"]
+   category = data["category"]
+   date = data["date"]
+   with connection:
+       with connection.cursor() as cursor:
+           cursor.execute(CREATE_EXPENSES_TABLE)
+           cursor.execute(INSERT_EXPENSES, (amount, category, date))
+           # Check if any rows were inserted
+           if cursor.rowcount == 0:
+               return {"message": "No rows were inserted."}, 400
+           # Fetch the last inserted row's ID
+           cursor.execute("SELECT lastval()")
+           expense_id = cursor.fetchone()[0]
+   return {"id": expense_id, "message": f"Expense of {amount} from {category}, on {date} created."}, 201
+
+# -------------------------- Return some of Income  -----------------------------
+
+@app.route("/api/netincome")
+def GET_NET_INCOME():
     with connection:
         with connection.cursor() as cursor:
-            cursor.execute(CREATE_EXPENSES_TABLE)
-            cursor.execute(INSERT_EXPENSES, (amount, category, date))
-            # Check if any rows were inserted
-            if cursor.rowcount == 0:
-                return {"message": "No rows were inserted."}, 400
-            # Fetch the last inserted row's ID
-            cursor.execute("SELECT lastval()")
-            income_id = cursor.fetchone()[0]
-    return {"id": income_id, "message": f"Expense of {amount} from {category}, on {date} created."}, 201
+            cursor.execute(NET_INCOME)
+            net_income = cursor.fetchone()[0]
+    return {"net_income": net_income}
